@@ -71,7 +71,7 @@ Resources:
       SecurityGroupIds:
         - !Ref AWSTASK9SecurityGroup
       KeyName: TEST-AWS-basic-key
-      AssociatePublicIpAddress: true
+      
       Tags:
         - Key: Name
           Value: AWSTASK9EC2
