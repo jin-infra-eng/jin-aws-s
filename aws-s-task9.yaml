@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS-Study-Standard-task9-create template
+
+Resources:
+  AWSTASK9VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: AWSTASK9VPC
+
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSTASK9VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: ap-northeast-1a
+      Tags:
+        - Key: Name
+          Value: PublicSubnet
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref AWSTASK9VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AWSTASK9VPC
+    
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RouteTable
+
+  AWSTASK9SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH from my IP only
+      VpcId: !Ref AWSTASK9VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 180.50.192.141/32
+  
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-088b486f20fab3f0e
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref AWSTASK9SecurityGroup
+      KeyName: TEST-AWS-basic-key
+      
+      Tags:
+        - Key: Name
+          Value: AWSTASK9EC2
