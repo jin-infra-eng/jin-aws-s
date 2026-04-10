@@ -1,0 +1,240 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS-Study-Standard-task15-create template
+
+Parameters:
+  DBMasterPassword:
+    Type: String
+    NoEcho: true
+
+
+
+Resources:
+  AWSTASK15VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.16.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: AWSTASK15VPC
+
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSTASK15VPC
+      CidrBlock: 172.16.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: ap-northeast-1a
+      Tags:
+        - Key: Name
+          Value: AWSTASK15PublicSubnet1a
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSTASK15VPC
+      CidrBlock: 172.16.2.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: ap-northeast-1c
+      Tags:
+        - Key: Name
+          Value: AWSTASK15PublicSubnet1c
+
+  PrivateSubnet1: 
+    Type: AWS::EC2::Subnet 
+    Properties: 
+      VpcId: !Ref AWSTASK15VPC
+      CidrBlock: 172.16.11.0/24
+      AvailabilityZone: ap-northeast-1a 
+      Tags: 
+        - Key: Name
+          Value: AWSTASK15Privatesubnet1a
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref AWSTASK15VPC 
+      CidrBlock: 172.16.12.0/24
+      AvailabilityZone: ap-northeast-1c
+      Tags:
+        - Key: Name
+          Value: AWSTASK15Privatesubnet1c
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref AWSTASK15VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AWSTASK15VPC
+    
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref RouteTable
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AWSTASK15EC2
+      VpcId: !Ref AWSTASK15VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 180.50.192.141/32
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: AWSTASK15-ec2-sg
+  
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-088b486f20fab3f0e
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      KeyName: TEST-AWS-basic-key
+      
+      Tags:
+        - Key: Name
+          Value: AWSTASK15EC2
+
+  ALBSecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AWSTASK15ALB
+      VpcId: !Ref AWSTASK15VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: AWSTASK15-alb
+      Scheme: internet-facing
+      Type: application
+      Subnets: 
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: AWSTASK15-alb
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: AWSTASK15-tg
+      VpcId: !Ref AWSTASK15VPC
+      Protocol: HTTP
+      Port: 8080
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: "traffic-port"
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 30
+      Matcher: 
+        HttpCode: 200-301
+      Targets:
+        - Id: !Ref EC2Instance
+          Port: 8080
+      Tags:
+        - Key: Name
+          Value: AWSTASK15-tg
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref AWSTASK15VPC
+      GroupDescription: AWS Study RDS
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: subnet group for rds
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: mysql
+      EngineVersion: 8.0.43
+      MasterUsername: admin
+      MasterUserPassword: !Ref DBMasterPassword
+      DBInstanceClass: db.t4g.micro
+      StorageType: gp3
+      AllocatedStorage: 20
+      Port: 3306
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      LicenseModel: general-public-license
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBName: AWSTASK15
+      BackupRetentionPeriod: 0
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+      AutoMinorVersionUpgrade: true
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: AWSTASK15-rds
