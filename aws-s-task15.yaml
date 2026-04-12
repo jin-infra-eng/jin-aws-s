@@ -238,3 +238,69 @@ Resources:
       Tags:
         - Key: Name
           Value: AWSTASK15-rds
+
+#追加アラーム
+  EC2CPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: AWSTASK15-EC2-CPU-Alarm
+      AlarmDescription: "EC2のCPU使用率が80%以上の場合にアラーム"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref EC2Instance
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: []
+      TreatMissingData: notBreaching
+
+  # ロググループ
+  Task15WAFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/waf-logs/${AWS::StackName}-logs"
+      RetentionInDays: 3
+
+  # WAF WebACL（ログなし）
+  MyWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: AWSTASK15-WebACL
+      Scope: REGIONAL
+      DefaultAction: 
+        Allow: {}        
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: AWSTASK15-WebACL
+      Rules:
+        - Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction: { None: {} }
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSCommonRules
+
+  # WAFログ設定（別リソース）
+  Task15WAFLoggingConfig:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      ResourceArn: !GetAtt MyWebACL.Arn
+      LogDestinationConfigs:
+        - !GetAtt Task15WAFLogGroup.Arn
+
+  # ALB紐づけ
+  MyWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLArn: !GetAtt MyWebACL.Arn
