@@ -3,3 +3,4 @@
 *.tfstate.*
 *.pem
 crash.log
+terraform.tfvars

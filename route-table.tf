@@ -16,7 +16,7 @@ resource "aws_route_table" "public" {
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.aws_study_task17_vpc.id
 
-  
+
   tags = {
     Name = "private-rt"
   }

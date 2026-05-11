@@ -3,7 +3,7 @@ resource "aws_wafv2_web_acl" "app_waf" {
   description = "WAF for ALB"
   scope       = "REGIONAL"
 
-  
+
   default_action {
     allow {}
   }
@@ -14,7 +14,7 @@ resource "aws_wafv2_web_acl" "app_waf" {
     metric_name                = "aws-study-task17-waf"
   }
 
- 
+
   rule {
     name     = "AWS-AWSManagedRulesCommonRuleSet"
     priority = 1
@@ -30,7 +30,7 @@ resource "aws_wafv2_web_acl" "app_waf" {
       }
     }
 
-    
+
 
 
     visibility_config {
