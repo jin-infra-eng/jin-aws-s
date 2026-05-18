@@ -28,10 +28,10 @@ resource "aws_security_group" "ec2_sg" {
   name   = "ec2-sg"
   vpc_id = aws_vpc.aws_study_task17_vpc.id
 
-  # ALB(aws-study-task17-alb-sg) からの80番だけ許可
+  # ALB(aws-study-task17-alb-sg) からの8080番だけ許可
   ingress {
-    from_port       = 80
-    to_port         = 80
+    from_port       = 8080
+    to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
